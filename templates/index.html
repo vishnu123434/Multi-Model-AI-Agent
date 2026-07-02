@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Multi-Model AI Agent</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="app-shell">
+
+    <div class="app-header">
+    <div>
+        <div class="title-row">
+            <div class="logo-badge">AI</div>
+            <div>
+                <h1>Multi-Model AI Agent</h1>
+                <p>Smart assistant for text, web, PDFs, images, and OCR</p>
+            </div>
+        </div>
+
+        <div class="tool-badges">
+            <span>🌐 Web Search</span>
+            <span>💱 Currency</span>
+            <span>📄 PDF QA</span>
+            <span>👁 OCR</span>
+            <span>🖼 Image Captioning</span>
+        </div>
+    </div>
+</div>
+
+    <main id="chat-box" class="chat-box">
+        <div class="message bot-message">
+            <div class="message-label">AI</div>
+            <div class="message-content">
+                Hello! Ask me a question, upload a PDF, or upload an image.
+            </div>
+        </div>
+    </main>
+
+    <form id="chat-form" class="chat-form">
+
+        <label for="file" class="file-label">
+            Attach
+        </label>
+
+        <input
+            type="file"
+            id="file"
+            name="file"
+            accept=".pdf,.png,.jpg,.jpeg,.webp"
+        >
+
+        <span id="file-name" class="file-name">No file selected</span>
+
+        <input
+            type="text"
+            id="message"
+            name="message"
+            placeholder="Ask something..."
+            autocomplete="off"
+        >
+
+        <button type="submit">Send</button>
+
+    </form>
+
+</div>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+</html>
