@@ -11,14 +11,13 @@ from agents.router import router
 from agents.web_agent import web_agent
 from agents.response_agent import response_agent
 from agents.currency_agent import currency_agent
-from agents.pdf_agent import pdf_agent
+from agents.document_agent import document_agent
 from agents.ocr_agent import ocr_agent
 from agents.image_agent import image_agent
-
+from agents.query_normalizer import query_normalizer
 # -------------------------------
 # Workflow State
 # -------------------------------
-
 class AgentState(TypedDict):
 
     query: str
@@ -34,6 +33,10 @@ class AgentState(TypedDict):
     to_currency: Optional[str]
 
     file_path: Optional[str]
+
+    db_path: Optional[str]
+
+    forced_tool: Optional[str]
 
     tool_output: Optional[str]
 
@@ -55,6 +58,7 @@ workflow = StateGraph(AgentState)
 # -------------------------------
 # Nodes
 # -------------------------------
+workflow.add_node("query_normalizer", query_normalizer)
 
 workflow.add_node("planner", planner)
 
@@ -66,7 +70,7 @@ workflow.add_node("currency_agent", currency_agent)
 
 workflow.add_node("response_agent", response_agent)
 
-workflow.add_node("pdf_agent", pdf_agent)
+workflow.add_node("document_agent", document_agent)
 
 workflow.add_node("ocr_agent", ocr_agent)
 
@@ -85,7 +89,9 @@ def route_tool(state):
 # Edges
 # -------------------------------------------------
 
-workflow.set_entry_point("planner")
+workflow.set_entry_point("query_normalizer")
+
+workflow.add_edge("query_normalizer", "planner")
 
 workflow.add_edge("planner", "router")
 
@@ -102,7 +108,7 @@ workflow.add_conditional_edges(
 
         "currency": "currency_agent",
 
-        "pdf": "pdf_agent",
+        "document": "document_agent",
 
         "ocr": "ocr_agent",
 
@@ -116,7 +122,7 @@ workflow.add_edge("web_agent", "response_agent")
 
 workflow.add_edge("currency_agent", "response_agent")
 
-workflow.add_edge("pdf_agent", "response_agent")
+workflow.add_edge("document_agent", "response_agent")
 
 workflow.add_edge("ocr_agent", "response_agent")
 

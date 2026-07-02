@@ -1,19 +1,12 @@
 """
 tools/document_loader.py
 
-Document Loader Tool
-
-Supports:
-1. PDF
-2. DOCX
-3. TXT
-
-Loads document files, splits them into chunks,
-and stores them in ChromaDB.
+Loads PDF/DOCX/TXT documents, splits them,
+and stores them in a fresh ChromaDB folder per upload.
 """
 
 import os
-import shutil
+import uuid
 
 from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -21,8 +14,7 @@ from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 
 
-DB_PATH = "vectordb"
-
+BASE_DB_PATH = "vectordb"
 
 embedding_model = HuggingFaceEmbeddings(
     model_name="sentence-transformers/all-MiniLM-L6-v2"
@@ -30,28 +22,24 @@ embedding_model = HuggingFaceEmbeddings(
 
 
 def get_loader(file_path: str):
-
     extension = file_path.rsplit(".", 1)[1].lower()
 
     if extension == "pdf":
         return PyPDFLoader(file_path)
 
-    elif extension == "docx":
+    if extension == "docx":
         return Docx2txtLoader(file_path)
 
-    elif extension == "txt":
+    if extension == "txt":
         return TextLoader(file_path, encoding="utf-8")
 
-    else:
-        raise ValueError("Unsupported document type. Please upload PDF, DOCX, or TXT.")
+    raise ValueError("Unsupported document type. Please upload PDF, DOCX, or TXT.")
 
 
-def ingest_document(file_path: str):
-
+def ingest_document(file_path: str) -> str:
     print("\nLoading Document...\n")
 
     loader = get_loader(file_path)
-
     documents = loader.load()
 
     print(f"Loaded {len(documents)} document sections.")
@@ -65,15 +53,15 @@ def ingest_document(file_path: str):
 
     print(f"Created {len(chunks)} chunks.")
 
-    if os.path.exists(DB_PATH):
-        shutil.rmtree(DB_PATH)
+    db_path = os.path.join(BASE_DB_PATH, str(uuid.uuid4()))
 
-    vector_db = Chroma.from_documents(
+    Chroma.from_documents(
         documents=chunks,
         embedding=embedding_model,
-        persist_directory=DB_PATH
+        persist_directory=db_path
     )
 
-    print("\nVector Database Created.\n")
+    print("\nVector Database Created.")
+    print(f"DB Path: {db_path}\n")
 
-    return vector_db
+    return db_path

@@ -36,22 +36,67 @@ if not GROQ_API_KEY:
 
 llm = ChatGroq(
     api_key=GROQ_API_KEY,
-    model="qwen/qwen3-32b",
+    model="llama-3.1-8b-instant",
     temperature=0,
-    max_tokens=1024,
+    max_tokens=512,
 )
 
 # --------------------------------------------------
 # Helper Function
 # --------------------------------------------------
+import re
 
-def invoke_llm(prompt):
-
+def invoke_llm(prompt: str) -> str:
     response = llm.invoke(prompt)
 
     text = response.content if hasattr(response, "content") else str(response)
 
-    # Remove reasoning blocks
-    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    # Case 1: complete think block
+    text = re.sub(
+        r"<think>.*?</think>",
+        "",
+        text,
+        flags=re.DOTALL
+    ).strip()
 
-    return text.strip()
+    # Case 2: incomplete think block
+    if "<think>" in text:
+        after_think = text.split("<think>", 1)[1]
+
+        # Try to recover final answer from common markers
+        markers = [
+            "Final answer:",
+            "Answer:",
+            "\n\n-",
+            "\n\nThe",
+            "\n\nHyderabad",
+            "\n\nIndia",
+            "\n\nTelangana",
+        ]
+
+        recovered = ""
+
+        for marker in markers:
+            if marker in after_think:
+                recovered = after_think.split(marker, 1)[1].strip()
+
+                if marker.startswith("\n\n-"):
+                    recovered = "- " + recovered
+                elif marker.startswith("\n\n"):
+                    recovered = marker.strip() + " " + recovered
+
+                break
+
+        if recovered:
+            text = recovered
+        else:
+            # Last fallback: remove the <think> tag itself but keep text
+            text = after_think.replace("<think>", "").strip()
+
+    # Remove remaining tags if any
+    text = text.replace("</think>", "").strip()
+
+    if not text:
+        text = "No clean answer was generated. Please try again."
+
+    return text
