@@ -5,21 +5,22 @@ from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 
 from workflow import app as langgraph_app
-from tools.document_loader import ingest_document
 
 
 flask_app = Flask(__name__)
 flask_app.config["MAX_CONTENT_LENGTH"] = 15 * 1024 * 1024
 
 UPLOAD_FOLDER = "uploads"
-DOCUMENT_FOLDER = os.path.join(UPLOAD_FOLDER, "documents")
 IMAGE_FOLDER = os.path.join(UPLOAD_FOLDER, "images")
 
-os.makedirs(DOCUMENT_FOLDER, exist_ok=True)
 os.makedirs(IMAGE_FOLDER, exist_ok=True)
+
 
 CHAT_HISTORY = []
 MAX_HISTORY_MESSAGES = 6
+
+
+ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 
 
 def get_recent_history():
@@ -36,16 +37,8 @@ def add_to_history(user_message, assistant_message):
         del CHAT_HISTORY[:-MAX_HISTORY_MESSAGES]
 
 
-ALLOWED_DOCUMENT_EXTENSIONS = {"pdf", "docx", "txt"}
-ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
-
-
 def get_file_extension(filename):
     return filename.rsplit(".", 1)[1].lower()
-
-
-def is_document(filename):
-    return "." in filename and get_file_extension(filename) in ALLOWED_DOCUMENT_EXTENSIONS
 
 
 def is_image(filename):
@@ -68,6 +61,7 @@ def home():
 @flask_app.route("/clear", methods=["POST"])
 def clear_memory():
     CHAT_HISTORY.clear()
+
     return jsonify({
         "success": True,
         "response": "Chat memory cleared."
@@ -78,72 +72,58 @@ def clear_memory():
 def chat():
 
     try:
+
         query = request.form.get("message", "").strip()
         uploaded_file = request.files.get("file")
 
         file_path = None
-        db_path = None
         forced_tool = None
 
         if uploaded_file and uploaded_file.filename:
 
             filename = secure_filename(uploaded_file.filename)
 
-            if is_document(filename):
-
-                file_path = os.path.join(DOCUMENT_FOLDER, filename)
-                uploaded_file.save(file_path)
-
-                print("\nDocument uploaded successfully.")
-                print(f"Document Path: {file_path}")
-
-                db_path = ingest_document(file_path)
-                forced_tool = "document"
-
-                if not query:
-                    query = "summarize this document"
-
-            elif is_image(filename):
+            if is_image(filename):
 
                 file_path = os.path.join(IMAGE_FOLDER, filename)
                 uploaded_file.save(file_path)
 
                 print("\nImage uploaded successfully.")
-                print(f"Image Path: {file_path}")
+                print("Image Path:", file_path)
 
                 q = query.lower()
 
-                if (
-                    "extract" in q
-                    or "text" in q
-                    or "read" in q
-                    or "info" in q
-                    or "ocr" in q
-                ):
+                if any(word in q for word in ["extract", "text", "read", "info", "ocr"]):
+
                     forced_tool = "ocr"
+
                     if not query:
                         query = "extract text from this image"
+
                 else:
+
                     forced_tool = "image"
+
                     if not query:
                         query = "describe this image"
 
             else:
+
                 return jsonify({
                     "success": False,
-                    "response": "Unsupported file type. Please upload PDF, DOCX, TXT, PNG, JPG, JPEG, or WEBP."
+                    "response": "Unsupported file type. Please upload PNG, JPG, JPEG or WEBP."
                 }), 400
 
         if not query:
+
             return jsonify({
                 "success": False,
-                "response": "Please enter a question or upload a file."
+                "response": "Please enter a question or upload an image."
             }), 400
 
         state = {
             "query": query,
             "file_path": file_path,
-            "db_path": db_path,
             "forced_tool": forced_tool,
             "history": get_recent_history()
         }
@@ -162,6 +142,7 @@ def chat():
         })
 
     except Exception as e:
+
         print("\n========== Flask API Error ==========")
         traceback.print_exc()
         print("====================================\n")

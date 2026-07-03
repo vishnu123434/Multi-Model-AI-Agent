@@ -14,7 +14,7 @@ fileInput.addEventListener("change", function () {
 });
 
 
-function addMessage(sender, text, className) {
+function addMessage(sender, text, className, imageUrl = null) {
     const messageDiv = document.createElement("div");
     messageDiv.classList.add("message", className);
 
@@ -28,6 +28,13 @@ function addMessage(sender, text, className) {
 
     messageDiv.appendChild(labelDiv);
     messageDiv.appendChild(contentDiv);
+
+    if (imageUrl) {
+        const img = document.createElement("img");
+        img.src = imageUrl;
+        img.classList.add("chat-image-preview");
+        messageDiv.appendChild(img);
+    }
 
     chatBox.appendChild(messageDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
@@ -43,17 +50,20 @@ chatForm.addEventListener("submit", async function (event) {
     const file = fileInput.files[0];
 
     if (!message && !file) {
-        alert("Please enter a message or upload a file.");
+        alert("Please enter a message or upload an image.");
         return;
     }
 
-    let userText = message || "Uploaded file";
+    let userText = message || "Uploaded image";
+
+    let imageUrl = null;
 
     if (file) {
         userText += `\nFile: ${file.name}`;
+        imageUrl = URL.createObjectURL(file);
     }
 
-    addMessage("You", userText, "user-message");
+    addMessage("You", userText, "user-message", imageUrl);
 
     const loadingMessage = addMessage("AI", "Thinking...", "bot-message");
     loadingMessage.classList.add("loading");
