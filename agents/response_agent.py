@@ -93,6 +93,14 @@ def response_agent(state):
             "success": True,
             "error": None
         }
+    if tool == "image_analysis":
+
+         return {
+        **state,
+        "response": tool_output,
+        "success": True,
+        "error": None
+    }
 
     # ------------------------------------
     # Limit retrieved content before LLM

@@ -14,7 +14,7 @@ fileInput.addEventListener("change", function () {
 });
 
 
-function addMessage(sender, text, className, imageUrl = null) {
+function addTextMessage(sender, text, className) {
     const messageDiv = document.createElement("div");
     messageDiv.classList.add("message", className);
 
@@ -29,12 +29,36 @@ function addMessage(sender, text, className, imageUrl = null) {
     messageDiv.appendChild(labelDiv);
     messageDiv.appendChild(contentDiv);
 
-    if (imageUrl) {
+    chatBox.appendChild(messageDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    return messageDiv;
+}
+
+
+function addUserMessageWithImage(text, file) {
+    const messageDiv = document.createElement("div");
+    messageDiv.classList.add("message", "user-message");
+
+    const labelDiv = document.createElement("div");
+    labelDiv.classList.add("message-label");
+    labelDiv.textContent = "You";
+
+    messageDiv.appendChild(labelDiv);
+
+    if (file) {
         const img = document.createElement("img");
-        img.src = imageUrl;
-        img.classList.add("chat-image-preview");
+        img.classList.add("user-image-preview");
+        img.src = URL.createObjectURL(file);
+        img.alt = file.name;
         messageDiv.appendChild(img);
     }
+
+    const contentDiv = document.createElement("div");
+    contentDiv.classList.add("message-content");
+    contentDiv.textContent = text || "Uploaded image";
+
+    messageDiv.appendChild(contentDiv);
 
     chatBox.appendChild(messageDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
@@ -54,18 +78,9 @@ chatForm.addEventListener("submit", async function (event) {
         return;
     }
 
-    let userText = message || "Uploaded image";
+    addUserMessageWithImage(message, file);
 
-    let imageUrl = null;
-
-    if (file) {
-        userText += `\nFile: ${file.name}`;
-        imageUrl = URL.createObjectURL(file);
-    }
-
-    addMessage("You", userText, "user-message", imageUrl);
-
-    const loadingMessage = addMessage("AI", "Thinking...", "bot-message");
+    const loadingMessage = addTextMessage("AI", "Thinking...", "bot-message");
     loadingMessage.classList.add("loading");
 
     const formData = new FormData();
@@ -85,7 +100,13 @@ chatForm.addEventListener("submit", async function (event) {
             body: formData
         });
 
-        const data = await response.json();
+        let data;
+
+        try {
+            data = await response.json();
+        } catch (jsonError) {
+            throw new Error("Server returned invalid JSON. Check Flask terminal.");
+        }
 
         loadingMessage.classList.remove("loading");
 

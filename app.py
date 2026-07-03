@@ -15,10 +15,8 @@ IMAGE_FOLDER = os.path.join(UPLOAD_FOLDER, "images")
 
 os.makedirs(IMAGE_FOLDER, exist_ok=True)
 
-
 CHAT_HISTORY = []
 MAX_HISTORY_MESSAGES = 6
-
 
 ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 
@@ -70,9 +68,7 @@ def clear_memory():
 
 @flask_app.route("/chat", methods=["POST"])
 def chat():
-
     try:
-
         query = request.form.get("message", "").strip()
         uploaded_file = request.files.get("file")
 
@@ -80,11 +76,9 @@ def chat():
         forced_tool = None
 
         if uploaded_file and uploaded_file.filename:
-
             filename = secure_filename(uploaded_file.filename)
 
             if is_image(filename):
-
                 file_path = os.path.join(IMAGE_FOLDER, filename)
                 uploaded_file.save(file_path)
 
@@ -93,29 +87,38 @@ def chat():
 
                 q = query.lower()
 
-                if any(word in q for word in ["extract", "text", "read", "info", "ocr"]):
-
+                if any(word in q for word in ["extract", "text", "read", "ocr"]):
                     forced_tool = "ocr"
 
                     if not query:
                         query = "extract text from this image"
 
-                else:
+                elif any(word in q for word in [
+                    "analyze",
+                    "analysis",
+                    "info",
+                    "details",
+                    "understand",
+                    "inspect"
+                ]):
+                    forced_tool = "image_analysis"
 
+                    if not query:
+                        query = "analyze this image"
+
+                else:
                     forced_tool = "image"
 
                     if not query:
                         query = "describe this image"
 
             else:
-
                 return jsonify({
                     "success": False,
                     "response": "Unsupported file type. Please upload PNG, JPG, JPEG or WEBP."
                 }), 400
 
         if not query:
-
             return jsonify({
                 "success": False,
                 "response": "Please enter a question or upload an image."
@@ -142,7 +145,6 @@ def chat():
         })
 
     except Exception as e:
-
         print("\n========== Flask API Error ==========")
         traceback.print_exc()
         print("====================================\n")

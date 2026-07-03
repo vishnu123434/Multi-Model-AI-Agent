@@ -68,6 +68,8 @@ def planner(state):
             intent = "OCR"
         elif forced_tool == "image":
             intent = "Image Captioning"
+        elif forced_tool == "image_analysis":
+            intent = "Image Analysis"
         else:
             intent = "Web Search"
 
@@ -172,10 +174,10 @@ Return ONLY valid JSON.
 
 Available tools:
 1. web
-2. document
-3. ocr
-4. image
-5. currency
+2. ocr
+3. image
+4. currency
+5. image_analysis
 
 Current user question:
 {user_query}
