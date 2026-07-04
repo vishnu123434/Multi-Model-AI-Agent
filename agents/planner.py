@@ -1,7 +1,3 @@
-import json
-import re
-
-from models.llm import invoke_llm
 from tools.currency import extract_currency_details
 
 
@@ -22,34 +18,6 @@ def is_currency_query(query: str) -> bool:
     return any(word in query for word in currency_words)
 
 
-
-def is_image_ocr_query(query: str) -> bool:
-    query = query.lower()
-
-    return any(word in query for word in [
-        "extract text",
-        "extract info",
-        "extract information",
-        "read image",
-        "read this image",
-        "read screenshot",
-        "read receipt",
-        "ocr"
-    ])
-
-
-def is_image_caption_query(query: str) -> bool:
-    query = query.lower()
-
-    return any(word in query for word in [
-        "describe image",
-        "describe this image",
-        "caption image",
-        "caption this image",
-        "what is in this image"
-    ])
-
-
 def planner(state):
 
     print("\n========== Planner Agent ==========\n")
@@ -57,23 +25,23 @@ def planner(state):
     user_query = state["query"]
     forced_tool = state.get("forced_tool")
 
-    # ------------------------------------
-    # Uploaded file route: trust app.py
-    # ------------------------------------
-
+    # Uploaded image route from app.py
     if forced_tool:
 
-       
         if forced_tool == "ocr":
             intent = "OCR"
+
         elif forced_tool == "image":
             intent = "Image Captioning"
+
         elif forced_tool == "image_analysis":
             intent = "Image Analysis"
+
         else:
             intent = "Web Search"
+            forced_tool = "web"
 
-        return {
+        result = {
             "query": user_query,
             "intent": intent,
             "tool": forced_tool,
@@ -81,7 +49,6 @@ def planner(state):
             "from_currency": None,
             "to_currency": None,
             "file_path": state.get("file_path"),
-            "db_path": state.get("db_path"),
             "forced_tool": forced_tool,
             "tool_output": None,
             "response": None,
@@ -90,15 +57,17 @@ def planner(state):
             "history": state.get("history", [])
         }
 
-    # ------------------------------------
-    # Deterministic routes first
-    # ------------------------------------
+        print("Planner Result")
+        print(result)
 
+        return result
+
+    # Currency route
     if is_currency_query(user_query):
 
         currency_details = extract_currency_details(user_query)
 
-        return {
+        result = {
             "query": user_query,
             "intent": "Currency Conversion",
             "tool": "currency",
@@ -106,8 +75,7 @@ def planner(state):
             "from_currency": currency_details["from_currency"],
             "to_currency": currency_details["to_currency"],
             "file_path": state.get("file_path"),
-            "db_path": state.get("db_path"),
-            "forced_tool": state.get("forced_tool"),
+            "forced_tool": None,
             "tool_output": None,
             "response": None,
             "success": True,
@@ -115,127 +83,29 @@ def planner(state):
             "history": state.get("history", [])
         }
 
-    
+        print("Planner Result")
+        print(result)
 
-    if is_image_ocr_query(user_query) and state.get("file_path"):
+        return result
 
-        return {
-            "query": user_query,
-            "intent": "OCR",
-            "tool": "ocr",
-            "amount": None,
-            "from_currency": None,
-            "to_currency": None,
-            "file_path": state.get("file_path"),
-            "db_path": state.get("db_path"),
-            "forced_tool": state.get("forced_tool"),
-            "tool_output": None,
-            "response": None,
-            "success": True,
-            "error": None,
-            "history": state.get("history", [])
-        }
-
-    if is_image_caption_query(user_query) and state.get("file_path"):
-
-        return {
-            "query": user_query,
-            "intent": "Image Captioning",
-            "tool": "image",
-            "amount": None,
-            "from_currency": None,
-            "to_currency": None,
-            "file_path": state.get("file_path"),
-            "db_path": state.get("db_path"),
-            "forced_tool": state.get("forced_tool"),
-            "tool_output": None,
-            "response": None,
-            "success": True,
-            "error": None,
-            "history": state.get("history", [])
-        }
-
-    # ------------------------------------
-    # Default: Web Search
-    # ------------------------------------
-
-    prompt = f"""
-You are a planner for a Multi-Model AI Assistant.
-
-Classify the current user question.
-
-Important:
-- Do NOT use previous conversation unless the current question clearly uses words like it, this, that, he, she, they, more, continue.
-- Fresh factual questions must use Web Search.
-- Questions about people, politics, current affairs, places, capitals, population, weather, CM, PM, CEO must use Web Search.
-- Only use Document QA when the user clearly refers to an uploaded document/pdf/file.
-
-Return ONLY valid JSON.
-
-Available tools:
-1. web
-2. ocr
-3. image
-4. currency
-5. image_analysis
-
-Current user question:
-{user_query}
-
-Return format:
-{{
-"intent":"",
-"tool":"web",
-"resolved_query":""
-}}
-"""
-
-    response = invoke_llm(prompt)
-
-    print("\nPlanner Raw Output:\n")
-    print(response)
-
-    match = re.search(r"\{.*\}", response, re.DOTALL)
-
-    if not match:
-        plan = {
-            "intent": "Web Search",
-            "tool": "web",
-            "resolved_query": user_query
-        }
-    else:
-        try:
-            plan = json.loads(match.group())
-        except Exception:
-            plan = {
-                "intent": "Web Search",
-                "tool": "web",
-                "resolved_query": user_query
-            }
-
-    # Safety override: avoid accidental document routing without db_path
-    if plan.get("tool") == "document" and not state.get("db_path"):
-        plan["tool"] = "web"
-        plan["intent"] = "Web Search"
-
-    resolved_query = plan.get("resolved_query", user_query)
-
-    print("\nPlanner Result")
-    print(plan)
-
-    return {
-        "query": resolved_query,
-        "intent": plan.get("intent", "Web Search"),
-        "tool": plan.get("tool", "web"),
+    # Default route: Web Search
+    result = {
+        "query": user_query,
+        "intent": "Web Search",
+        "tool": "web",
         "amount": None,
         "from_currency": None,
         "to_currency": None,
         "file_path": state.get("file_path"),
-        "db_path": state.get("db_path"),
-        "forced_tool": state.get("forced_tool"),
+        "forced_tool": None,
         "tool_output": None,
         "response": None,
         "success": True,
         "error": None,
         "history": state.get("history", [])
     }
+
+    print("Planner Result")
+    print(result)
+
+    return result

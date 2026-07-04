@@ -70,29 +70,46 @@ def query_normalizer(state):
     prompt = f"""
 You are a Query Normalizer.
 
-Rewrite the user's query into a clean standalone query.
+Your ONLY job is to rewrite the user's query into a clean standalone query.
 
 Rules:
 - Fix spelling mistakes, abbreviations, and broken English.
 - Use previous conversation ONLY if the current query is clearly a follow-up.
 - If the current query is a fresh question, ignore previous conversation completely.
-- Do NOT change the meaning.
-- Do NOT answer.
+- Do NOT answer the question.
+- Do NOT add facts.
+- Do NOT guess the answer.
+- Do NOT replace the question with an answer.
+- Do NOT add information that is not already implied by the user query.
 - Return ONLY the rewritten query.
 - No JSON.
 - No explanation.
 
 Examples:
 
-Previous conversation:
-User: explain AIML
-AI: AIML means Artificial Intelligence Markup Language.
+Input:
+Capital of Kazakhstan
 
-Current user query:
-what is artificial intelligence
+Output:
+What is the capital of Kazakhstan?
 
-Rewritten query:
-What is Artificial Intelligence?
+Input:
+cm of telangana
+
+Output:
+Who is the Chief Minister of Telangana?
+
+Input:
+wht is popultion of tg
+
+Output:
+What is the population of Telangana?
+
+Input:
+latest ai news today
+
+Output:
+Latest AI news today
 
 Previous conversation:
 User: temperature in Hyderabad
@@ -101,18 +118,8 @@ AI: Hyderabad temperature is 24°C.
 Current user query:
 tell me in fahrenheit
 
-Rewritten query:
+Output:
 Current temperature in Hyderabad in Fahrenheit
-
-Previous conversation:
-User: who is Narendra Modi
-AI: Narendra Modi is the Prime Minister of India.
-
-Current user query:
-capital of china
-
-Rewritten query:
-Capital of China
 
 Previous conversation:
 {history}
@@ -120,10 +127,53 @@ Previous conversation:
 Current user query:
 {query}
 
-Rewritten query:
+Output:
 """
 
     normalized_query = invoke_llm(prompt).strip()
+
+    # -------------------------------
+    # Safety Guard:
+    # Prevent normalizer from answering
+    # -------------------------------
+
+    fresh_question_keywords = [
+        "capital",
+        "who",
+        "what",
+        "where",
+        "when",
+        "why",
+        "how",
+        "cm",
+        "pm",
+        "ceo",
+        "population",
+        "temperature",
+        "weather",
+    ]
+
+    bad_answer_patterns = [
+        "official",
+        "largest city",
+        "is the",
+        "is a",
+        "was the",
+        "are the",
+    ]
+
+    query_lower = query.lower()
+    normalized_lower = normalized_query.lower()
+
+    if any(word in query_lower for word in fresh_question_keywords):
+        if any(pattern in normalized_lower for pattern in bad_answer_patterns):
+            normalized_query = query
+
+    # Extra cleanup
+    normalized_query = normalized_query.replace("Output:", "").strip()
+
+    if not normalized_query:
+        normalized_query = query
 
     print("Original Query:", query)
     print("Normalized Query:", normalized_query)

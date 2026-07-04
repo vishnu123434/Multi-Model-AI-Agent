@@ -78,12 +78,12 @@ def response_agent(state):
 
     if tool == "ocr":
 
-        return {
-            **state,
-            "response": f"Extracted text:\n\n{tool_output}",
-            "success": True,
-            "error": None
-        }
+      return {
+        **state,
+        "response": tool_output,
+        "success": True,
+        "error": None
+    }
 
     if tool == "image":
 
